@@ -8,13 +8,14 @@
 #   + token: A telegram token from the @BotFather
 
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
+    Application,
     CallbackQueryHandler,
     CommandHandler,
+    ContextTypes,
     ConversationHandler,
     MessageHandler,
-    Updater,
     filters,
 )
 
@@ -200,7 +201,7 @@ def get_mapping(word: str, lang: str) -> str:
 
 # handler functions for bot
 # start function called with /start
-def start(update, context) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_message = """
 Welcome to my alphabetic spelling bot!
 
@@ -217,88 +218,71 @@ If you have any ideas, requests or bugs, don´t hasitate to contact me!
 Thx for using my bot! Hope you will enjoy it!
 - @mitschix
     """
-    context.bot.send_message(chat_id=update.message.chat_id, text=start_message)
+    await update.message.reply_text(start_message)
 
 
 # show different menus
-def spelling_start(update, context) -> None:
+async def spelling_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard_main)
-    context.bot.send_message(
-        chat_id=update.message.chat_id,
-        text="Which language do you prefer?",
-        reply_markup=reply_markup,
+    await update.message.reply_text(
+        "Which language do you prefer?", reply_markup=reply_markup
     )
 
 
-def handle_words(update, context) -> int:
-    user = update.message.chat_id
+async def handle_words(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user = update.effective_chat.id
     given_string = update.message.text
     output = get_mapping(given_string, LANG[user])
-    msg = "{} would be:\n\n{}\n\n\nWhat would you like to do next?".format(
-        given_string, output
-    )
-    context.bot.send_message(
-        chat_id=user, text=msg, reply_markup=InlineKeyboardMarkup(keyboard_after)
+    msg = f"{given_string} would be:\n\n{output}\n\n\nWhat would you like to do next?"
+    await update.message.reply_text(
+        msg, reply_markup=InlineKeyboardMarkup(keyboard_after)
     )
     return ConversationHandler.END
 
 
-def wrong_conv(bot, update, user_data) -> None:
-    bot.send_message(
-        chat_id=update.message.chat_id, text="sorry.. the given value is wrong!"
-    )
+async def wrong_conv(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("sorry.. the given value is wrong!")
 
 
-def buttons_control(update, context) -> int:
-    global LANG
-    user = update.callback_query.message.chat_id
-    option = update.callback_query.data
+async def buttons_control(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    user = query.message.chat.id
+    option = query.data
 
     if option == "ger":
         LANG[user] = "German"
-        msg = "German chosen"
-        msg += "\nPlease enter the word you would like to spell."
-        context.bot.send_message(chat_id=user, text=msg)
+        await query.message.reply_text("German chosen.\nPlease enter the word.")
         return GER
     elif option == "int":
         LANG[user] = "Inter"
-        msg = "International chosen"
-        msg += "\nPlease enter the word you would like to spell."
-        context.bot.send_message(chat_id=user, text=msg)
+        await query.message.reply_text("International chosen.\nPlease enter the word.")
         return INTER
     elif option == "again":
-        msg = "OK, lets try again.\n\nWhich spelling do you want to choose?"
-        context.bot.send_message(
-            chat_id=user, text=msg, reply_markup=InlineKeyboardMarkup(keyboard_main)
+        await query.message.reply_text(
+            "OK, let's try again.\nWhich spelling do you want?",
+            reply_markup=InlineKeyboardMarkup(keyboard_main),
         )
         return 0
     else:
-        msg = (
+        await query.message.reply_text(
             "Thank you for the usage! If you need me again, just click /howtospell. (:"
         )
-        context.bot.send_message(chat_id=user, text=msg)
         return ConversationHandler.END
 
 
-def help_output(update, context) -> None:
+async def help_output(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_string = """
 /start                          - Start the bot // Read intro
 /howtospell                     - access the spelling context
 /help                           - show this info
 """
-    context.bot.send_message(chat_id=update.message.chat_id, text=help_string)
+    await update.message.reply_text(help_string)
 
 
 def main() -> None:
-    """
-    set variables and setup bot
-    """
+    app = Application.builder().token(token).build()
 
-    # updater = Updater(token=tok, use_context=True)
-    updater = Updater(token=token)
-    dispatcher = updater.dispatcher
-
-    # handler
     start_handler = CommandHandler("start", start)
     help_handler = CommandHandler("help", help_output)
     main_handler = CommandHandler("howtospell", spelling_start)
@@ -308,23 +292,20 @@ def main() -> None:
         allow_reentry=True,
         entry_points=[button_handler],
         states={
-            GER: [MessageHandler(filters.text, handle_words)],
-            INTER: [MessageHandler(filters.text, handle_words)],
+            GER: [MessageHandler(filters.TEXT, handle_words)],
+            INTER: [MessageHandler(filters.TEXT, handle_words)],
         },
-        fallbacks=[MessageHandler(filters.text, wrong_conv)],
+        fallbacks=[MessageHandler(filters.TEXT, wrong_conv)],
     )
 
-    # add handler to dispatcher
-    dispatcher.add_handler(start_handler)
-    dispatcher.add_handler(main_handler)
-    dispatcher.add_handler(help_handler)
-    dispatcher.add_handler(conv_handler)
+    app.add_handler(start_handler)
+    app.add_handler(main_handler)
+    app.add_handler(help_handler)
+    app.add_handler(conv_handler)
 
     # start the bot
-    print("starting all_finance_bot")
-    updater.start_polling()
-    # run the bot until it receives Ctrl-C
-    updater.idle()
+    print("starting spelling bot")
+    app.run_polling()
 
 
 if __name__ == "__main__":
