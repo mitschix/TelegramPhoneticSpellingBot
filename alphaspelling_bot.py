@@ -8,9 +8,15 @@
 #   + token: A telegram token from the @BotFather
 
 
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Updater, CommandHandler, MessageHandler, \
-    Filters, CallbackQueryHandler, ConversationHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ConversationHandler,
+    MessageHandler,
+    Updater,
+    filters,
+)
 
 from tel_tokens import token
 
@@ -302,10 +308,10 @@ def main() -> None:
         allow_reentry=True,
         entry_points=[button_handler],
         states={
-            GER: [MessageHandler(Filters.text, handle_words)],
-            INTER: [MessageHandler(Filters.text, handle_words)],
+            GER: [MessageHandler(filters.text, handle_words)],
+            INTER: [MessageHandler(filters.text, handle_words)],
         },
-        fallbacks=[MessageHandler(Filters.text, wrong_conv)]
+        fallbacks=[MessageHandler(filters.text, wrong_conv)],
     )
 
     # add handler to dispatcher
