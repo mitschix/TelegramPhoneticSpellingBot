@@ -8,6 +8,18 @@
 #   + token: A telegram token from the @BotFather
 
 
+import os
+
+from dotenv import load_dotenv
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
+
 from handlers import (
     GER,
     INTER,
@@ -18,19 +30,14 @@ from handlers import (
     start,
     wrong_input,
 )
-from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    ConversationHandler,
-    MessageHandler,
-    filters,
-)
-
-from tel_tokens import token
 
 
 def main() -> None:
+    load_dotenv()
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        raise RuntimeError("BOT_TOKEN environment variable not set!")
+
     app = Application.builder().token(token).build()
 
     conv_handler = ConversationHandler(
